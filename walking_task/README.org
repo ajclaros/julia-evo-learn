@@ -1,0 +1,55 @@
+#+title: Julia-RL-CTRNN
+
+
+* CTRNN
+** Performance improvements over python's CTRNN class (rl_legged_walker):
+- Sanity check for accuracy of both implementations: run step function for 2200 steps of size 0.1. Print neural outputs. They are exactly the same
+- Python
+#+begin_src python
+# 3-neuron CTRNN loop
+import time
+from ctrnn import CTRNN
+genome = np.array([
+0.04774359502446968,
+-0.683711607305986,
+0.45036338411104737,
+0.9721092700062304,
+0.7891519578423444,
+-0.00960243655211588,
+-0.9358149684117485,
+-0.8152701212733787,
+0.6207119728559448,
+0.28996795347325205,
+0.3639871362038097,
+-0.6154338363438252,
+0.4644851766806753,
+-0.4605993067803686,
+-0.4491022368326481,])
+
+t0 = time.time()
+x = CTRNN(3)
+x.mapGenome(genomes[0])
+x.initializeState(np.zeros(3))
+def runCTRNN():
+    time = np.arange(0, 220, 0.1)
+    for i, t, in enumerate(time):
+        x.step(0.1)
+    print(x.outputs) # neuron outputs after 2200 iterations
+runCTRNN()
+runtime = time.time() - t0
+print(runtime) #0.013033390045166016
+
+#+end_src
+
+- Julia
+#+begin_src julia
+function runCTRNN(genome, size, WR, BR, TR, TA, steps)
+    ns = createCTRNN(genome, size,  WR, BR, TR, TA)
+    ns_state = initializeState(ns, [0.0, 0.0, 0.0])
+    for i = 1:steps
+        ctrnnStep(0.1, ns, ns_state)
+    end
+    println(ns_state.outputs)
+end
+@time runCTRNN(genome, 3, 16.0, 16.0, 5.0, 6.0, 2200) #0.003933 3.32x faster
+#+end_src

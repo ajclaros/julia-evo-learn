@@ -1,0 +1,7 @@
+# Ignore any file in this directory except .gitignore
+*
+
+#allow subfolders
+!/RPG/0/**
+!/.gitignore
+
