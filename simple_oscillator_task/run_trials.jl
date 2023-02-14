@@ -118,6 +118,7 @@ function run_trial(
     )
     pathname = "./evolved-osc/$params_size/"
     x = readdir(pathname)
+    x = filter(x -> endswith(x, ".npy"), x)
     fitness = [get_fitness(filename) for filename in x]
     sorted_fitness = sort(fitness)
     sorted_filenames = sort_string_based_on_numerical_list(x, fitness)
@@ -266,8 +267,8 @@ p = Dict(
    :fit_range => (0.203, 0.70),
    :dt => 0.1,
    :record_every => 100,
-   :num_trials => 4,
-   :indices => [1, 2 ,3 ,4 ,5]
+   :num_trials => 1,
+   :indices => [5]
 )
 # enter values of trial params into run_trial
 results = []
@@ -304,15 +305,34 @@ function plot_results(results, p)
     subplots_adjust(hspace=0.15)
     for i in 1:length(results)
         ix = findall(x->x==results[i][:index], p[:indices])
-        plot(results[i][:window_a], color=pcols[ix[1]])
+        # plot(results[i][:window_a], color=pcols[ix[1]])
+        plot(results[i][:window_a], color="k")
     end
-     PyPlot.title("Performance: performance - mean(average_performance)")
+    # relabel the axis labels to be 10
+    xticks([200, 300, 400, 500, 600, 700, 800], [ 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    xlims = xlim()
+    # set x lim
+    xlim(p[:learning_start]/10, xlims[2])
+    # change x axis to start at p[:learning_start]
+    # xlim(p[:learning_start], p[:duration])
+    plt.xlabel("Time")
+    plt.ylabel("Performance")
+
+     PyPlot.title("Can an agent learn to perform a task?")
     subplot(2,1,2)
     for i in 1:length(results)
         ix = findall(x->x==results[i][:index], p[:indices])
-        plot(results[i][:flux], c=pcols[ix[1]])
+        plot(results[i][:flux], c="k")
     end
-    PyPlot.title("Flux size")
+    xticks([0, 100, 200, 300, 400, 500, 600, 700, 800], [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    xlims = xlim()
+    # set x lim
+    xlim(p[:learning_start]/10, xlims[2])
+    # change x axis to start at p[:learning_start]
+    # xlim(p[:learning_start], p[:duration])
+    plt.xlabel("Time")
+    plt.ylabel("Fluctuation size")
+
 end
 plot_results(results, p)
 println("Done")

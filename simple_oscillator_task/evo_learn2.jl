@@ -9,9 +9,9 @@ using Random
     include("./ea.jl")
 
     function runLearningTrials(idx, genome,
-                               ;params_duration=1000,
+                               ;params_duration=500,
                                params_size=2,
-                               params_num_trials=5,
+                               params_num_trials=10,
                                params_window_size=200,
                                params_learn_rate=0.05,
                                params_conv_rate=0.0001,
@@ -19,8 +19,8 @@ using Random
                                params_max_flux=5.0,
                                params_period_min=100,
                                params_period_max=300,
-                               params_learning_start=200,
-                               params_dt=0.01,
+                               params_learning_start=300,
+                               params_dt=0.1,
                                )
         end_fitnesses = zeros(params_num_trials)
         Threads.@threads for i in 1:params_num_trials
@@ -113,17 +113,18 @@ using Random
 
 end
 function runMicrobialWithLearn(microbial
-                              ;params_duration=1000,
-                               params_num_trials=5,
-                               params_window_size=100,
+                              ;params_duration=8000,
+                               params_num_trials=10,
+                               params_size=2,
+                               params_window_size=200,
                                params_learn_rate=0.05,
                                params_conv_rate=0.0001,
                                params_init_flux=1.0,
-                               params_max_flux=10.0,
+                               params_max_flux=5.0,
                                params_period_min=100,
                                params_period_max=300,
-                               params_learning_start=200,
-                               params_dt=0.01
+                               params_learning_start=300,
+                               params_dt=0.1
                               )
     params = microbial[1]
     pop = microbial[2]
@@ -131,6 +132,7 @@ function runMicrobialWithLearn(microbial
     results = pmap(i -> runLearningTrials(i, pop.pop[i,:],
                                           params_duration=params_duration,
                                           params_num_trials=params_num_trials,
+                                           params_size=params_size,
                                           params_window_size=params_window_size,
                                           params_learn_rate=params_learn_rate,
                                           params_conv_rate=params_conv_rate,
@@ -140,6 +142,7 @@ function runMicrobialWithLearn(microbial
                                           params_period_max=params_period_max,
                                           params_learning_start=params_learning_start,
                                           params_dt=params_dt
+
                                          ), 1:params.popsize)
     for i in 1:params.popsize
         pop.learnedFitness[i] = results[i]
@@ -153,7 +156,6 @@ function runMicrobialWithLearn(microbial
         for island in islands
             # create random pairs of microbes such that each pair is unique
             shuffle!(island)
-            println(island)
             pairs = reshape(island, 2, :)
             for j in 1:size(pairs)[1]
                 if pop.learnedFitness[pairs[j,1]] > pop.learnedFitness[pairs[j,2]]
@@ -173,6 +175,7 @@ function runMicrobialWithLearn(microbial
         results = pmap(j -> runLearningTrials(j, pop.pop[j,:],
                                               params_duration=params_duration,
                                               params_num_trials=params_num_trials,
+                                              params_size=params_size,
                                               params_window_size=params_window_size,
                                               params_learn_rate=params_learn_rate,
                                               params_conv_rate=params_conv_rate,
@@ -192,15 +195,26 @@ end
 
 
 function main()
-    popsize = 16
-    islandN = 4
-    generations = 2
-    learning_duration = 500
-
+    popsize = 100
+    islandN = 10
+    generations = 500
     N = 2
     rec_rate = 0.5
     mut_rate = 0.01
-    num_trials = 3
+    num_trials = 20
+    learning_params = Dict(
+        :params_duration=>500,
+        :params_num_trials=>10,
+        :params_size=>2,
+        :params_window_size=>200,
+        :params_learn_rate=>0.05,
+        :params_conv_rate=>0.0001,
+        :params_init_flux=>1.0,
+        :params_max_flux=>5.0,
+        :params_period_min=>100,
+        :params_period_max=>300,
+        :params_learning_start=>300,
+        :params_dt=>0.1)
     learnedTrack_Fitness = zeros(num_trials, generations)
     learnedTrack_AvgFitness = zeros(num_trials, generations)
     learnedTrack_AfterLearn = zeros(num_trials, generations)
@@ -215,7 +229,19 @@ function main()
     for i in 1:num_trials
         println("Run $i")
         microbial = createMicrobialLearn(popsize, N, islandN, rec_rate, mut_rate, generations)
-        runMicrobialWithLearn(microbial, params_duration=learning_duration)
+        runMicrobialWithLearn(microbial,
+                                params_duration=learning_params[:params_duration],
+                                params_num_trials=learning_params[:params_num_trials],
+                                params_size=learning_params[:params_size],
+                                params_window_size=learning_params[:params_window_size],
+                                params_learn_rate=learning_params[:params_learn_rate],
+                                params_conv_rate=learning_params[:params_conv_rate],
+                                params_init_flux=learning_params[:params_init_flux],
+                                params_max_flux=learning_params[:params_max_flux],
+                                params_period_min=learning_params[:params_period_min],
+                                params_period_max=learning_params[:params_period_max],
+                                params_learning_start=learning_params[:params_learning_start],
+                                params_dt=learning_params[:params_dt])
         # learnedFitness[i,:] = microbial[2].bestTrack
         # learnedAvgFitness[i,:] = microbial[2].avgTrack
         # learnedFitnessAfterLearn[i,:] = microbial[2].bestTrackLearned
@@ -236,13 +262,13 @@ function main()
     rmprocs(workers())
     filenum=0
     # filename = "evolveVLearn$(filenum).jld2"
-    filestring = "./data/evLrnFitD500learnD$(learning_duration)-T"
+    filestring = "./data/batch5/evLrnIsland$(learning_params[:params_duration])-T"
+    # filestring = "./data/batch3/test"
     filename = "$(filestring)$(filenum).jld2"
     #check if file exists
     if isfile(filename)
         while isfile(filename)
             filenum += 1
-            # filename = "$(filename)$(filenum)-.jld2"
             filename = "$(filestring)$(filenum).jld2"
         end
     end
@@ -253,6 +279,7 @@ function main()
         learned["trackAvg"] = learnedTrack_AvgFitness
         learned["trackAfterLearn"] = learnedTrack_AfterLearn
         learned["trackAvgAfterLearn"] = learnedTrack_AvgAfterLearn
+
         evolved = JLD2.Group(file, "evolved")
         evolved["track"] = evolvedTrack_Fitness
         evolved["trackAvg"] = evolvedTrack_AvgFitness
@@ -266,6 +293,20 @@ function main()
         params["recombRate"] = rec_rate
         params["mutateRate"] = mut_rate
         params["N"] = N
+        learn_params = JLD2.Group(file, "learn_params")
+        learn_params["duration"] = learning_params[:params_duration]
+        learn_params["num_trials"] = learning_params[:params_num_trials]
+        learn_params["size"] = learning_params[:params_size]
+        learn_params["window_size"] = learning_params[:params_window_size]
+        learn_params["learn_rate"] = learning_params[:params_learn_rate]
+        learn_params["conv_rate"] = learning_params[:params_conv_rate]
+        learn_params["init_flux"] = learning_params[:params_init_flux]
+        learn_params["max_flux"] = learning_params[:params_max_flux]
+        learn_params["period_min"] = learning_params[:params_period_min]
+        learn_params["period_max"] = learning_params[:params_period_max]
+        learn_params["learning_start"] = learning_params[:params_learning_start]
+        learn_params["dt"] = learning_params[:params_dt]
+
     end
 end
 main()

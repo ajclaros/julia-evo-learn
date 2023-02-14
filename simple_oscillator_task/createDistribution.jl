@@ -12,6 +12,7 @@ using JLD2
     end
 
     function get_fitness(filename)
+        println("Loading $filename")
         return parse(Int, split(filename, "-")[2][1:5])/100000
     end
 
@@ -65,7 +66,7 @@ end
 
 # function main() # uncomment to run as script, comment out to run in REPL
     p = Dict(
-        :duration => 8000,
+        :duration => 2000,
         :size => 2,
         :window_size => 200,
         :learn_rate => 0.05,
@@ -84,6 +85,9 @@ end
 
     pathname = getPathname(p[:size])
     files = readdir(pathname)
+
+    # filter out files that are not npz
+    files = filter(x -> endswith(x, ".npy"), files)
     fitness = [get_fitness(file) for file in files]
     println("Number of files: ", length(files))
     drop_outliers!(fitness, p[:fit_range][1], p[:fit_range][2], files)
@@ -93,6 +97,9 @@ end
     end
 
     results_dict = Dict(file => zeros(p[:num_trials]) for file in files)
+    # reorder results_dict to be in order of starting fitness
+    results_dict = Dict(sort(collect(results_dict), by=x->get_fitness(x[1]))...)
+
 
     println("Number reduced to: ", length(files))
     #distributed and multithreaded
@@ -116,7 +123,10 @@ end
     end
 
 
+
     # create a histogram for each file
+
+    x_0 = get_fitness(collect(keys(results_dict))[1])
     cols = distinguishable_colors(length(files), [RGB(0,0,0), RGB(1,1,1)], dropseed=true)
     pcols = map(col -> (red(col), green(col), blue(col)), cols)
     fig, ax = subplots(nrows=Int(ceil(length(files)/2)), ncols=2, figsize=(10, 5))
@@ -141,14 +151,14 @@ end
         # round up to  nearest 0.05
         max_val = ceil(max_val * 20) / 20
         # max_val = round(max_val, digits=2)
-        ax[ix].set_xlim(0.2, max_val)
+        ax[ix].set_xlim(x_0 , max_val)
         # xlims = ax[ix].get_xlim()
         # if xlims[1] < 0.0
         #     ax[ix].axes[:set_xticks]([0, round(xlims[2] ;digits=3)])
         # else
         #     ax[ix].axes[:set_xticks]([round(xlims[1] ; digits=3), round(xlims[2] ;digits=3)])
         # end
-        ax[ix].axes[:set_xticks]([0.2, max_val])
+        # ax[ix].axes[:set_xticks](max_val)
         ax[ix].axes[:set_yticks]([])
         # set y axis title
         ax[ix].set_ylabel("($(ix))  ")
@@ -156,7 +166,9 @@ end
         ax[ix].yaxis.label.set_rotation(0)
     end
     fig.legend(loc="upper center")
+    fig.suptitle("Fitness Distribution with Duration $(p[:duration])")
     savefig("./images/oscillation_random-$(p[:num_random])genomes-home")
 # end # end main, uncomment to run as a script. keep commented to run in REPL
 # save results_dict as a .jld2 file
 JLD2.@save "results_dict_duration1000.jld2" results_dict
+# get fitness of the first key in results_dict

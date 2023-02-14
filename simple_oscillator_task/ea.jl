@@ -207,8 +207,8 @@ function runMicrobialIsland(microbial)
         pop.currentGen += 1
     end
 end
-microbial = createMicrobialIsland(100, 2, 10, 0.5, 0.05, 300, "CPG", 1)
-runMicrobialIsland(microbial)
+# microbial = createMicrobialIsland(100, 2, 10, 0.5, 0.05, 300, "CPG", 1)
+# runMicrobialIsland(microbial)
 # params, pop = microbial
 # plot(pop.bestTrack)
 # plot(pop.avgTrack)
