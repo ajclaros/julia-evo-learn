@@ -101,8 +101,8 @@ function mutate(microbial, loser)
         # muate each gene with normal distribution centered at 0 and sd mutateProb
         pop.pop[loser,i] += rand(Normal(0,1))*params.mutateProb
     end
-    clamp!(pop.pop[loser,:], -1, 1)
-    # pop.f[loser] = fitness_function(pop.pop[loser,:], params.N, params.generator, params.configuration)
+    pop.pop[loser,:] = clamp.(pop.pop[loser,:], -1.0, 1.0)
+    pop.f[loser] = fitness_function(pop.pop[loser,:], params.N, params.generator, params.configuration)
 end
 
 function recombine(microbial, loser, winner)
@@ -206,7 +206,17 @@ function runMicrobialIsland(microbial)
         pop.currentGen += 1
     end
 end
-# microbial = createMicrobialIsland(200, 3, 10, 0.5, 0.005, 500, "CPG", 3)
-# runMicrobialIsland(microbial)
+microbial = createMicrobialIsland(200, 3, 20, 0.5, 0.05, 500, "CPG", 3)
+runMicrobialIsland(microbial)
 # params, pop = microbial
-# @code_warntype runMicrobial(microbial)
+# runMicrobial(microbial)
+# # print fitness
+# p, pop = microbial
+# for i in 1:p.popsize
+#     println("Fitness: $i ", pop.f[i])
+# end
+# # print genome 17
+# println("Genome 13: ", pop.pop[17,:])
+
+# x =clamp.(pop.pop[13,:], -1.0, 1.0)
+# fitness_function(x, 3, "RPG", 3)

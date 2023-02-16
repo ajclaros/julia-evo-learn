@@ -86,7 +86,7 @@ using Random
             # muate each gene with normal distribution centered at 0 and sd mutateProb
             pop.pop[loser,i] += rand(Normal(0,1))*params.mutateProb
         end
-        pop.pop[loser,:] = clamp.(pop.pop[loser,:], -1, 1)
+        pop.pop[loser,:] = clamp.(pop.pop[loser,:], -1.0, 1.0)
         pop.f[loser] = fitness_function(pop.pop[loser,:], params.N, params.generator, params.configuration)
     end
 
@@ -139,7 +139,7 @@ using Random
             # recombine
             recombine(params, pop, loser, winner)
             # mutate
-            mutateLearn(microbial , loser)
+            mutateLearn(microbial, loser)
         end
     end
 end
@@ -215,13 +215,13 @@ end
 
 function main()
     popsize = 200
-    islandN = 10
+    islandN = 20
     generations = 500
     rec_rate = 0.5
-    mut_rate = 0.005
+    mut_rate = 0.05
     num_trials = 1
     learning_params = Dict(
-        :params_duration=>2000,
+        :params_duration=>8000,
         :params_num_trials=>1,
         :params_size=>3,
         :params_generator=>"CPG",
