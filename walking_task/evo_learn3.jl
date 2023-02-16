@@ -130,6 +130,7 @@ using Random
         pairs = reshape(island, 2, :)
         Threads.@threads for j in 1:size(pairs)[1]
             if pop.learnedFitness[pairs[j,1]] > pop.learnedFitness[pairs[j,2]]
+            # if pop.f[pairs[j,1]] > pop.f[pairs[j,2]]
                 winner = pairs[j,1]
                 loser = pairs[j,2]
             else
@@ -221,7 +222,7 @@ function main()
     mut_rate = 0.05
     num_trials = 1
     learning_params = Dict(
-        :params_duration=>8000,
+        :params_duration=>2000,
         :params_num_trials=>1,
         :params_size=>3,
         :params_generator=>"CPG",
