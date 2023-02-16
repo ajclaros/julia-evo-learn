@@ -11,15 +11,17 @@ using Random
     function runLearningTrials(idx, genome,
                                ;params_duration=500,
                                params_size=2,
+                               params_generator="CPG",
+                               params_config=3,
                                params_num_trials=10,
-                               params_window_size=200,
-                               params_learn_rate=0.05,
-                               params_conv_rate=0.0001,
-                               params_init_flux=1.0,
-                               params_max_flux=5.0,
-                               params_period_min=100,
-                               params_period_max=300,
-                               params_learning_start=300,
+                               params_window_size=220,
+                               params_learn_rate=0.1,
+                               params_conv_rate=0.000000001,
+                               params_init_flux=0.02,
+                               params_max_flux=0.2,
+                               params_period_min=440,
+                               params_period_max=4400,
+                               params_learning_start=600,
                                params_dt=0.1,
                                )
         end_fitnesses = zeros(params_num_trials)
@@ -27,6 +29,8 @@ using Random
             end_fitnesses[i] = learn(genome,
                                      params_duration=params_duration,
                                      params_size= params_size,
+                                     params_generator=params_generator,
+                                     params_config=params_config,
                                      params_window_size=params_window_size,
                                      params_learn_rate=params_learn_rate,params_conv_rate= params_conv_rate,
                                      params_init_flux=params_init_flux,params_max_flux=params_max_flux,
@@ -45,7 +49,6 @@ using Random
         bestTrack::Array{Float64,1} #best fitness over time
         avgTrack::Array{Float64,1} #average fitness over time
         currentGen::Int64
-        numTrials::Int64
         learnedFitness::Array{Float64,1}
         bestTrackLearned::Array{Float64,1}
         avgTrackLearned::Array{Float64,1}
@@ -54,15 +57,24 @@ using Random
     MicrobPopLearn(popsize, genesize, generations) =
         MicrobePopLearn(rand(popsize, genesize).*2 .-1,
                         zeros(popsize), 0.0, 0, zeros(genesize),
-                        zeros(generations), zeros(generations), 1, 5,
+                        zeros(generations), zeros(generations), 1,
                         zeros(popsize), zeros(generations), zeros(generations))
 
-    function createMicrobialLearn(popsize::Int64, N::Int64, islandN::Int64,
+    function createIslandLearn(popsize::Int64, N::Int64, islandN::Int64,
                                   recombProb::Float64,
                                   mutateProb::Float64,
-                                  generations::Int64)
-        genesize = N*N + 2*N + 1
-        params = MicrobParamsIsland(popsize, genesize, N, islandN, mutateProb, recombProb, generations, "", 0)
+                                  generations::Int64,
+                                  generator::String,
+                                  config::Int64,
+                                  )
+        genesize = N*N + 2*N
+        params = MicrobParamsIsland(popsize,
+                                    genesize, N,
+                                    islandN,
+                                    mutateProb,
+                                    recombProb,
+                                    generations,
+                                    generator, config)
         pop = MicrobPopLearn(popsize, genesize, generations)
         return (params, pop)
     end
@@ -75,7 +87,7 @@ using Random
             pop.pop[loser,i] += rand(Normal(0,1))*params.mutateProb
         end
         pop.pop[loser,:] = clamp.(pop.pop[loser,:], -1, 1)
-        pop.f[loser] = fitness_function_oscillate(pop.pop[loser,:], params.N)
+        pop.f[loser] = fitness_function(pop.pop[loser,:], params.N, params.generator, params.configuration)
     end
 
     function fitstatsLearn(pop::MicrobePopLearn)
@@ -104,18 +116,39 @@ using Random
     function setFitness(params,pop, index)
         params = microbial[1]
         pop = microbial[2]
-        pop.f[index] = fitness_function_oscillate(pop.pop[index,:], params.N)
+        pop.f[index] = fitness_function(pop.pop[index,:], params.N, params.generator, params.configuration)
     end
 
     function getFitnessIndex(pop::MicrobePopLearn, index::Int64, params::MicrobParamsIsland)
-        pop.f[index] = fitness_function_oscillate(pop.pop[index,:], params.N)
+        pop.f[index] = fitness_function(pop.pop[index,:], params.N, params.generator, params.configuration)
     end
 
+    function islandCompare(island, microbial)
+        params = microbial[1]
+        pop = microbial[2]
+        shuffle!(island)
+        pairs = reshape(island, 2, :)
+        Threads.@threads for j in 1:size(pairs)[1]
+            if pop.learnedFitness[pairs[j,1]] > pop.learnedFitness[pairs[j,2]]
+                winner = pairs[j,1]
+                loser = pairs[j,2]
+            else
+                winner = pairs[j,2]
+                loser = pairs[j,1]
+            end
+            # recombine
+            recombine(params, pop, loser, winner)
+            # mutate
+            mutateLearn(microbial , loser)
+        end
+    end
 end
-function runMicrobialWithLearn(microbial
+function runIslandWithLearn(microbial
                               ;params_duration=8000,
                                params_num_trials=10,
-                               params_size=2,
+                               params_size=3,
+                               params_generator="CPG",
+                               params_config=3,
                                params_window_size=200,
                                params_learn_rate=0.05,
                                params_conv_rate=0.0001,
@@ -132,7 +165,9 @@ function runMicrobialWithLearn(microbial
     results = pmap(i -> runLearningTrials(i, pop.pop[i,:],
                                           params_duration=params_duration,
                                           params_num_trials=params_num_trials,
-                                           params_size=params_size,
+                                          params_size=params_size,
+                                          params_generator=params_generator,
+                                          params_config=params_config,
                                           params_window_size=params_window_size,
                                           params_learn_rate=params_learn_rate,
                                           params_conv_rate=params_conv_rate,
@@ -142,7 +177,6 @@ function runMicrobialWithLearn(microbial
                                           params_period_max=params_period_max,
                                           params_learning_start=params_learning_start,
                                           params_dt=params_dt
-
                                          ), 1:params.popsize)
     for i in 1:params.popsize
         pop.learnedFitness[i] = results[i]
@@ -153,29 +187,14 @@ function runMicrobialWithLearn(microbial
         # # create islands of microbes
         islands = createIslands(params.popsize, params.islandN)
         # # for each island, recombine and mutate
-        for island in islands
-            # create random pairs of microbes such that each pair is unique
-            shuffle!(island)
-            pairs = reshape(island, 2, :)
-            for j in 1:size(pairs)[1]
-                if pop.learnedFitness[pairs[j,1]] > pop.learnedFitness[pairs[j,2]]
-                    winner = pairs[j,1]
-                    loser = pairs[j,2]
-                else
-                    winner = pairs[j,2]
-                    loser = pairs[j,1]
-                end
-                # recombine
-                recombine(params, pop, loser, winner)
-                # mutate
-                mutateLearn(microbial, loser)
-            end
-        end
+        pmap(island -> islandCompare(island, microbial), islands)
         pop.pop = circshift(pop.pop, (rand([-1,1]),0))
         results = pmap(j -> runLearningTrials(j, pop.pop[j,:],
                                               params_duration=params_duration,
                                               params_num_trials=params_num_trials,
                                               params_size=params_size,
+                                                params_generator=params_generator,
+                                                params_config=params_config,
                                               params_window_size=params_window_size,
                                               params_learn_rate=params_learn_rate,
                                               params_conv_rate=params_conv_rate,
@@ -185,9 +204,9 @@ function runMicrobialWithLearn(microbial
                                               params_period_max=params_period_max,
                                               params_learning_start=params_learning_start,
                                               params_dt=params_dt), 1:params.popsize)
-        for j in 1:params.popsize
+        Threads.@threads for j in 1:params.popsize
             pop.learnedFitness[j] = results[j]
-            pop.f[j] = fitness_function_oscillate(pop.pop[j,:], params.N)
+            pop.f[j] = fitness_function(pop.pop[j,:], params.N, params.generator, params.configuration)
         end
         pop.currentGen += 1
     end
@@ -195,25 +214,26 @@ end
 
 
 function main()
-    popsize = 100
+    popsize = 200
     islandN = 10
     generations = 500
-    N = 2
     rec_rate = 0.5
-    mut_rate = 0.01
-    num_trials = 20
+    mut_rate = 0.005
+    num_trials = 1
     learning_params = Dict(
-        :params_duration=>500,
+        :params_duration=>2000,
         :params_num_trials=>1,
-        :params_size=>2,
-        :params_window_size=>200,
-        :params_learn_rate=>0.05,
-        :params_conv_rate=>0.0001,
-        :params_init_flux=>1.0,
-        :params_max_flux=>5.0,
-        :params_period_min=>100,
-        :params_period_max=>300,
-        :params_learning_start=>300,
+        :params_size=>3,
+        :params_generator=>"CPG",
+        :params_configuration=>3,
+        :params_window_size=>220,
+        :params_learn_rate=>0.1,
+        :params_conv_rate=>0.00000001,
+        :params_init_flux=>0.02,
+        :params_max_flux=>0.2,
+        :params_period_min=>440,
+        :params_period_max=>4400,
+        :params_learning_start=>550,
         :params_dt=>0.1)
     learnedTrack_Fitness = zeros(num_trials, generations)
     learnedTrack_AvgFitness = zeros(num_trials, generations)
@@ -228,11 +248,16 @@ function main()
     println("Max threads: $(Threads.nthreads())")
     for i in 1:num_trials
         println("Run $i")
-        microbial = createMicrobialLearn(popsize, N, islandN, rec_rate, mut_rate, generations)
-        runMicrobialWithLearn(microbial,
+        microbial = createIslandLearn(popsize, learning_params[:params_size], islandN, rec_rate, mut_rate, generations,
+                                      learning_params[:params_generator],
+                                      learning_params[:params_configuration])
+
+        runIslandWithLearn(microbial,
                                 params_duration=learning_params[:params_duration],
                                 params_num_trials=learning_params[:params_num_trials],
                                 params_size=learning_params[:params_size],
+                                params_generator=learning_params[:params_generator],
+                                params_config=learning_params[:params_configuration],
                                 params_window_size=learning_params[:params_window_size],
                                 params_learn_rate=learning_params[:params_learn_rate],
                                 params_conv_rate=learning_params[:params_conv_rate],
@@ -250,7 +275,11 @@ function main()
         learnedTrack_AvgFitness[i,:] = microbial[2].avgTrack
         learnedTrack_AfterLearn[i,:] = microbial[2].bestTrackLearned
         learnedTrack_AvgAfterLearn[i,:] = microbial[2].avgTrackLearned
-        microb = createMicrobialLearn(popsize, N, islandN, rec_rate, mut_rate, generations)
+        microb = createIslandLearn(popsize, learning_params[:params_size], islandN, rec_rate, mut_rate, generations,
+                                        learning_params[:params_generator],
+                                        learning_params[:params_configuration])
+
+
         runMicrobialIsland(microb)
         evolvedTrack_Fitness[i,:] = microb[2].bestTrack
         evolvedTrack_AvgFitness[i,:] = microb[2].avgTrack
@@ -262,7 +291,7 @@ function main()
     rmprocs(workers())
     filenum=0
     # filename = "evolveVLearn$(filenum).jld2"
-    filestring = "./data/batch5/evLrnIsland$(learning_params[:params_duration])-T"
+    filestring = "./data/batch1/evLrnIsland$(learning_params[:params_duration])-T"
     # filestring = "./data/batch3/test"
     filename = "$(filestring)$(filenum).jld2"
     #check if file exists
@@ -292,7 +321,7 @@ function main()
         params["islandN"] = islandN
         params["recombRate"] = rec_rate
         params["mutateRate"] = mut_rate
-        params["N"] = N
+        params["N"] = learning_params[:params_size]
         learn_params = JLD2.Group(file, "learn_params")
         learn_params["duration"] = learning_params[:params_duration]
         learn_params["num_trials"] = learning_params[:params_num_trials]
@@ -306,7 +335,6 @@ function main()
         learn_params["period_max"] = learning_params[:params_period_max]
         learn_params["learning_start"] = learning_params[:params_learning_start]
         learn_params["dt"] = learning_params[:params_dt]
-
     end
 end
 main()

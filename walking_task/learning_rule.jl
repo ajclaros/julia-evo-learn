@@ -61,7 +61,7 @@ function iter_moment(dt::Float64, params::LRuleParams, learner::LRule)
     learner.moment_mat .+= dt
     indices = findall(learner.moment_mat .> learner.period_mat)
     learner.moment_mat[indices] .= 0
-    #learner.period_mat[indices] .= rand.(Uniform(params.period_min, params.period_max))
+    # learner.period_mat[indices] .= rand.(Uniform(params.period_min, params.period_max))
     flux_period_center = (params.period_max+params.period_min)/2
     dev = (params.period_max-params.period_min)/4
     learner.period_mat[indices] .= randn(length(indices)) .* dev .+ flux_period_center

@@ -129,6 +129,7 @@ function run_trial(
     )
     pathname = "./evolved/$(params_generator)/$(params_size)/$(params_config)/"
     x = readdir(pathname)
+    x = filter(x -> occursin(".npy", x), x)
     fitness = [get_fitness(filename) for filename in x]
     sorted_fitness = sort(fitness)
     sorted_filenames = sort_string_based_on_numerical_list(x, fitness)
@@ -237,55 +238,57 @@ function run_trial(
                 :config => params_config,
                 :index => index)
 end
-
-p = Dict(
-   :duration => 20000,
-   :size => 3,
-   :delay => 0,
-   :generator => "CPG",
-   :config  => "012",
-   :window_size => 220,
-   :learn_rate => 0.1,
-   :conv_rate =>  0.000000001,
-   :init_flux => 0.02,
-   :max_flux  => 0.2,
-   :period_min => 1000,
-   :period_max => 10000,
-   :learning_start => 3000,
-   :tolerance => 0.000000,
-   :performance_bias => 0.000,
-   :fit_range => (0.50, 0.70),
-   :dt => 0.1,
-   :record_every => 10,
-   :num_trials => 8,
-   :indices => [19]
-)
-# enter values of trial params into run_trial
-results = []
-for index in p[:indices]
+function learning_loop()
+    p = Dict(
+        :duration => 8000,
+        :size => 3,
+        :delay => 0,
+        :generator => "CPG",
+        :config  => "012",
+        :window_size => 220,
+        :learn_rate => 0.1,
+        :conv_rate =>  0.00000001,
+        :init_flux => 0.02,
+        :max_flux  => 0.2,
+        :period_min => 440,
+        :period_max => 4400,
+        :learning_start => 550,
+        :tolerance => 0.000000,
+        :performance_bias => 0.000,
+        :fit_range => (0.201, 0.70),
+        :dt => 0.1,
+        :record_every => 10,
+        :num_trials => 8,
+        :indices => [1, 2, 3, 4, 5]
+    )
+    # enter values of trial params into run_trial
+    results = []
+    for index in p[:indices]
         Threads.@threads for j in 1:p[:num_trials]
             println("Running index: $index, trial: $j ")
             push!(results, run_trial(index,
-                  ;params_duration = p[:duration],
-                    params_size = p[:size],
-                    params_delay = p[:delay],
-                    params_generator = p[:generator],
-                    params_config = p[:config],
-                    params_window_size = p[:window_size],
-                    params_learn_rate = p[:learn_rate],
-                    params_conv_rate = p[:conv_rate],
-                    params_init_flux = p[:init_flux],
-                    params_max_flux = p[:max_flux],
-                    params_period_min = p[:period_min],
-                    params_period_max = p[:period_max],
-                    params_learning_start = p[:learning_start],
-                    params_tolerance = p[:tolerance],
-                    params_performance_bias = p[:performance_bias],
-                    params_fit_range = p[:fit_range],
-                    params_dt = p[:dt],
-                    params_record_every = p[:record_every],
-             ))
-     end
+                                     ;params_duration = p[:duration],
+                                     params_size = p[:size],
+                                     params_delay = p[:delay],
+                                     params_generator = p[:generator],
+                                     params_config = p[:config],
+                                     params_window_size = p[:window_size],
+                                     params_learn_rate = p[:learn_rate],
+                                     params_conv_rate = p[:conv_rate],
+                                     params_init_flux = p[:init_flux],
+                                     params_max_flux = p[:max_flux],
+                                     params_period_min = p[:period_min],
+                                     params_period_max = p[:period_max],
+                                     params_learning_start = p[:learning_start],
+                                     params_tolerance = p[:tolerance],
+                                     params_performance_bias = p[:performance_bias],
+                                     params_fit_range = p[:fit_range],
+                                     params_dt = p[:dt],
+                                     params_record_every = p[:record_every],
+                                     ))
+        end
+    end
+    return results, p
 end
 # from each result, plot the window_b track
 function plot_results(results, p)
@@ -305,5 +308,6 @@ function plot_results(results, p)
     end
     PyPlot.title("Flux size")
 end
+results, p = learning_loop()
 plot_results(results, p)
 println("Done")

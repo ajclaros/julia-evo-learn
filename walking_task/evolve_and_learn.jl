@@ -50,7 +50,6 @@ mutable struct MicrobePopLearn   #changing parameters within population
     bestTrack::Array{Float64,1} #best fitness over time
     avgTrack::Array{Float64,1} #average fitness over time
     currentGen::Int64
-    numTrials::Int64
     learnedFitness::Array{Float64,1}
     bestTrackLearned::Array{Float64,1}
     avgTrackLearned::Array{Float64,1}
@@ -59,7 +58,7 @@ end
 MicrobPopLearn(popsize, genesize, generations) =
     MicrobePopLearn(rand(popsize, genesize).*2 .-1,
                     zeros(popsize), 0.0, 0, zeros(genesize),
-                    zeros(generations), zeros(generations), 1, 10,
+                    zeros(generations), zeros(generations), 1,
                     zeros(popsize), zeros(generations), zeros(generations))
 
 function createMicrobialLearn(popsize::Int64, N::Int64, demesize::Int64,
@@ -129,15 +128,15 @@ function runMicrobialWithLearn(microbial
                                params_size=3,
                                params_generator="CPG",
                                params_config=3,
-                               params_num_trials=10,
+                               params_num_trials=1,
                                params_window_size=220,
-                               params_learn_rate=0.01,
-                               params_conv_rate=0.000000001,
+                               params_learn_rate=0.1,
+                               params_conv_rate=0.00000001,
                                params_init_flux=0.02,
                                params_max_flux=0.2,
                                params_period_min=440,
                                params_period_max=4400,
-                               params_learning_start=800,
+                               params_learning_start=550,
                                params_dt=0.1
                               )
     params = microbial[1]
@@ -207,96 +206,16 @@ function runMicrobialWithLearn(microbial
 end
 
 
-"Run evolutionary algorithm that only has evolved fitness, but test whether the genomes can learn farther than the evolved+learn"
-function runMicrobialNoLearn(microbial
-                              ;params_duration=2000,
-                              params_size=3,
-                              params_generator="CPG",
-                              params_config=3,
-                               params_num_trials=5,
-                               params_window_size=200,
-                               params_learn_rate=0.05,
-                               params_conv_rate=0.0001,
-                               params_init_flux=1.0,
-                               params_max_flux=10.0,
-                               params_period_min=100,
-                               params_period_max=300,
-                               params_learning_start=400,
-                               params_dt=0.1
-                              )
-    params = microbial[1]
-    pop = microbial[2]
-    #assign fitnessos
-    results = pmap(i -> runLearningTrials(i, pop.pop[i,:],
-                                          params_duration=params_duration,
-                                          params_size=params_size,
-                                          params_generator=params_generator,
-                                          params_config=params_config,
-                                          params_num_trials=params_num_trials,
-                                          params_window_size=params_window_size,
-                                          params_learn_rate=params_learn_rate,
-                                          params_conv_rate=params_conv_rate,
-                                          params_init_flux=params_init_flux,
-                                          params_max_flux=params_max_flux,
-                                          params_period_min=params_period_min,
-                                          params_period_max=params_period_max,
-                                          params_learning_start=params_learning_start,
-                                          params_dt=params_dt
-                                         ), 1:params.popsize)
-    for i in 1:params.popsize
-        pop.learnedFitness[i] = results[i]
-        getFitnessIndex(pop, i, params)
-    end
-    for i in 1:params.generations
-        fitstatsLearn(pop)
-        # prevent race conditions when overwriting genomes
-        for j in 1:params.popsize
-            # pick two random individuals
-            m1 = rand(1:params.popsize)
-            m2 = mod1(rand(m1-params.demesize:m1+params.demesize), params.popsize)
-            while m1 == m2
-                m2 = mod1(rand(m1 - params.demesize:m1+params.demesize), params.popsize)
-            end
-            if pop.f[m1] > pop.f[m2]
-                winner = m1
-                loser = m2
-            else
-                winner = m2
-                loser = m1
-            end
-            recombine(params, pop, loser, winner)
-            mutateLearn(microbial, loser)
-        end
-        results = pmap(j -> runLearningTrials(j, pop.pop[j,:],
-                                              params_duration=params_duration,
-                                              params_num_trials=params_num_trials,
-                                              params_window_size=params_window_size,
-                                              params_learn_rate=params_learn_rate,
-                                              params_conv_rate=params_conv_rate,
-                                              params_init_flux=params_init_flux,
-                                              params_max_flux=params_max_flux,
-                                              params_period_min=params_period_min,
-                                              params_period_max=params_period_max,
-                                              params_learning_start=params_learning_start,
-                                              params_dt=params_dt), 1:params.popsize)
-
-        for j in 1:params.popsize
-            pop.learnedFitness[j] = results[j]
-        end
-        pop.currentGen += 1
-    end
-end
-
 function main()
-    popsize = 10
+    popsize = 100
     demesize = 2
-    generations = 10
+    generations = 100
     N = 3
     generator = "CPG"
     params_config = "012"
     rec_rate = 0.5
-    mut_rate = 0.001
-    num_trials = 2
+    mut_rate = 0.01
+    num_trials = 1
     if params_config == "0"
         config = 1
     elseif params_config == "01"
