@@ -240,25 +240,25 @@ function run_trial(
 end
 function learning_loop()
     p = Dict(
-        :duration => 8000,
+        :duration => 4000,
         :size => 3,
         :delay => 0,
         :generator => "CPG",
         :config  => "012",
         :window_size => 220,
-        :learn_rate => 0.1,
-        :conv_rate =>  0.00000001,
+        :learn_rate => 0.01,
+        :conv_rate =>  0.000000001,
         :init_flux => 0.02,
         :max_flux  => 0.2,
         :period_min => 440,
         :period_max => 4400,
-        :learning_start => 550,
+        :learning_start => 1000,
         :tolerance => 0.000000,
         :performance_bias => 0.000,
-        :fit_range => (0.201, 0.70),
+        :fit_range => (0.400, 0.70),
         :dt => 0.1,
         :record_every => 10,
-        :num_trials => 8,
+        :num_trials => 4,
         :indices => [1, 2, 3, 4, 5]
     )
     # enter values of trial params into run_trial

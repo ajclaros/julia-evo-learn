@@ -205,26 +205,28 @@ function runMicrobialWithLearn(microbial
     end
 end
 
-
 function main()
     popsize = 100
     demesize = 2
-    generations = 100
-    N = 3
-    generator = "CPG"
-    params_config = "012"
+    generations = 500
     rec_rate = 0.5
-    mut_rate = 0.01
+    mut_rate = 0.05
     num_trials = 1
-    if params_config == "0"
-        config = 1
-    elseif params_config == "01"
-        config = 2
-    elseif params_config == "012"
-        config = 3
-    end
-
-
+    learning_params = Dict(
+        :params_duration=>2000,
+        :params_num_trials=>1,
+        :params_size=>3,
+        :params_generator=>"CPG",
+        :params_configuration=>3,
+        :params_window_size=>220,
+        :params_learn_rate=>0.1,
+        :params_conv_rate=>0.00000001,
+        :params_init_flux=>0.02,
+        :params_max_flux=>0.2,
+        :params_period_min=>440,
+        :params_period_max=>4400,
+        :params_learning_start=>550,
+        :params_dt=>0.1)
     learnedTrack_Fitness = zeros(num_trials, generations)
     learnedTrack_AvgFitness = zeros(num_trials, generations)
     learnedTrack_AfterLearn = zeros(num_trials, generations)
@@ -232,37 +234,58 @@ function main()
 
     evolvedTrack_Fitness = zeros(num_trials, generations)
     evolvedTrack_AvgFitness = zeros(num_trials, generations)
-    # evolvedTrack_AfterLearn = zeros(num_trials, generations)
-    # evolvedTrack_AvgAfterLearn = zeros(num_trials, generations)
-
+    evolvedTrack_AfterLearn = zeros(num_trials, generations)
+    evolvedTrack_AvgAfterLearn = zeros(num_trials, generations)
     println("Running with $(nworkers()) workers")
     println("Max threads: $(Threads.nthreads())")
     for i in 1:num_trials
         println("Run $i")
-        microbial = createMicrobialLearn(popsize, N, demesize, rec_rate, mut_rate, generations, generator, config)
-        runMicrobialWithLearn(microbial)
+        microbial = createMicrobialLearn(popsize, learning_params[:params_size],demesize, rec_rate, mut_rate, generations, learning_params[:params_generator],
+                                         learning_params[:params_configuration])
+
+        runMicrobialWithLearn(microbial,
+                                params_duration=learning_params[:params_duration],
+                                params_num_trials=learning_params[:params_num_trials],
+                                params_size=learning_params[:params_size],
+                                params_generator=learning_params[:params_generator],
+                                params_config=learning_params[:params_configuration],
+                                params_window_size=learning_params[:params_window_size],
+                                params_learn_rate=learning_params[:params_learn_rate],
+                                params_conv_rate=learning_params[:params_conv_rate],
+                                params_init_flux=learning_params[:params_init_flux],
+                                params_max_flux=learning_params[:params_max_flux],
+                                params_period_min=learning_params[:params_period_min],
+                                params_period_max=learning_params[:params_period_max],
+                                params_learning_start=learning_params[:params_learning_start],
+                                params_dt=learning_params[:params_dt])
         learnedTrack_Fitness[i,:] = microbial[2].bestTrack
         learnedTrack_AvgFitness[i,:] = microbial[2].avgTrack
         learnedTrack_AfterLearn[i,:] = microbial[2].bestTrackLearned
         learnedTrack_AvgAfterLearn[i,:] = microbial[2].avgTrackLearned
+        microb = createMicrobial(popsize, learning_params[:params_size], N, rec_rate, mut_rate, generations,
+                                        learning_params[:params_generator],
+                                        learning_params[:params_configuration])
 
-        microb = createMicrobial(popsize, N, demesize, rec_rate, mut_rate, generations, generator, config)
+
         runMicrobial(microb)
-
         evolvedTrack_Fitness[i,:] = microb[2].bestTrack
         evolvedTrack_AvgFitness[i,:] = microb[2].avgTrack
-        # evolvedTrack_AfterLearn[i,:] = microb[2].bestTrackLearned
-        # evolvedTrack_AvgAfterLearn[i,:] = microb[2].avgTrackLearned
-
+        evolvedTrack_AfterLearn[i,:] = microb[2].bestTrackLearned
+        evolvedTrack_AvgAfterLearn[i,:] = microb[2].avgTrackLearned
+        # evolvedFitness[i,:] = microb[2].bestTrack
+        # evolvedAvgFitness[i,:] = microb[2].avgTrack
     end
     rmprocs(workers())
     filenum=0
-    filename = "lowEvoParams_lowLearnParam$(filenum).jld2"
+    # filename = "evolveVLearn$(filenum).jld2"
+    filestring = "./data/microbial/batch1/evoLrn$(learning_params[:params_duration])-T"
+    # filestring = "./data/batch3/test"
+    filename = "$(filestring)$(filenum).jld2"
     #check if file exists
     if isfile(filename)
         while isfile(filename)
             filenum += 1
-            filename = "$(filenum).jld2"
+            filename = "$(filestring)$(filenum).jld2"
         end
     end
     println("saving to $filename")
@@ -276,16 +299,29 @@ function main()
         evolved = JLD2.Group(file, "evolved")
         evolved["track"] = evolvedTrack_Fitness
         evolved["trackAvg"] = evolvedTrack_AvgFitness
-        # evolved["trackAfterLearn"] = evolvedTrack_AfterLearn
-        # evolved["trackAvgAfterLearn"] = evolvedTrack_AvgAfterLearn
+        evolved["trackAfterLearn"] = evolvedTrack_AfterLearn
+        evolved["trackAvgAfterLearn"] = evolvedTrack_AvgAfterLearn
         params = JLD2.Group(file, "params")
         params["num_trials"] = num_trials
         params["generations"] = generations
         params["popsize"] = popsize
-        params["demesize"] = demesize
+        params["islandN"] = N
         params["recombRate"] = rec_rate
         params["mutateRate"] = mut_rate
-        params["N"] = N
+        params["N"] = learning_params[:params_size]
+        learn_params = JLD2.Group(file, "learn_params")
+        learn_params["duration"] = learning_params[:params_duration]
+        learn_params["num_trials"] = learning_params[:params_num_trials]
+        learn_params["size"] = learning_params[:params_size]
+        learn_params["window_size"] = learning_params[:params_window_size]
+        learn_params["learn_rate"] = learning_params[:params_learn_rate]
+        learn_params["conv_rate"] = learning_params[:params_conv_rate]
+        learn_params["init_flux"] = learning_params[:params_init_flux]
+        learn_params["max_flux"] = learning_params[:params_max_flux]
+        learn_params["period_min"] = learning_params[:params_period_min]
+        learn_params["period_max"] = learning_params[:params_period_max]
+        learn_params["learning_start"] = learning_params[:params_learning_start]
+        learn_params["dt"] = learning_params[:params_dt]
     end
 end
 main()

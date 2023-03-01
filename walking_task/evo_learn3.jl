@@ -215,11 +215,11 @@ end
 
 
 function main()
-    popsize = 200
-    islandN = 20
+    popsize = 100
+    islandN = 25
     generations = 500
     rec_rate = 0.5
-    mut_rate = 0.05
+    mut_rate = 0.1
     num_trials = 1
     learning_params = Dict(
         :params_duration=>2000,

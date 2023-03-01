@@ -306,32 +306,41 @@ function plot_results(results, p)
     for i in 1:length(results)
         ix = findall(x->x==results[i][:index], p[:indices])
         # plot(results[i][:window_a], color=pcols[ix[1]])
-        plot(results[i][:window_a], color="k")
+        plot(results[i][:window_a], color="k", label="Performance")
     end
     # relabel the axis labels to be 10
-    xticks([200, 300, 400, 500, 600, 700, 800], [ 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    # xticks([0, 100, 200, 300, 400, 500, 600, 700, 800], [ 0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    xticks([30,  100, 200, 300, 400, 500, 600, 700, 800], [300, 1000,  2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    # plt.axvline(x=p[:learning_start]/10, color="r", linestyle="--", label="Learning Start")
     xlims = xlim()
     # set x lim
     xlim(p[:learning_start]/10, xlims[2])
     # change x axis to start at p[:learning_start]
     # xlim(p[:learning_start], p[:duration])
+    # text(0.01, 0.95, "(a)", transform = gca().transAxes, fontsize=12)
     plt.xlabel("Time")
     plt.ylabel("Performance")
+    plt.legend(loc="bottom right")
 
      PyPlot.title("Can an agent learn to perform a task?")
     subplot(2,1,2)
     for i in 1:length(results)
         ix = findall(x->x==results[i][:index], p[:indices])
-        plot(results[i][:flux], c="k")
+        plot(results[i][:flux], c="k", label="Amplitude")
     end
-    xticks([0, 100, 200, 300, 400, 500, 600, 700, 800], [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    # xticks([0, 100, 200, 300, 400, 500, 600, 700, 800], [0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000])
+    xticks([30, 100, 200, 300, 400, 500, 600, 700, 800], [300,1000, 2000, 3000,  000, 5000, 6000, 7000, 8000])
+    # plt.axvline(x=p[:learning_start]/10, color="r", linestyle="--", label="Learning Start")
+
     xlims = xlim()
     # set x lim
     xlim(p[:learning_start]/10, xlims[2])
     # change x axis to start at p[:learning_start]
     # xlim(p[:learning_start], p[:duration])
+    plt.legend()
     plt.xlabel("Time")
     plt.ylabel("Fluctuation size")
+    savefig("flux.eps", format="eps", dpi=1000)
 
 end
 plot_results(results, p)

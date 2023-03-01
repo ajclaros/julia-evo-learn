@@ -44,7 +44,7 @@ using PyCall
     end
 
     function parallelLearning(genome, genome_file, ix;
-                              params_duration::Int64 = 20000,
+                              params_duration::Int64 = 2000,
                               params_size::Int64 = 3,
                               params_window_size::Int64 = 220,
                               params_learn_rate::Float64 = 0.1,
@@ -82,11 +82,11 @@ end
 
 function get_results()
     p = Dict(
-        :duration => 400,
+        :duration => 2000,
         :size => 2,
         :window_size => 200,
-        :learn_rate => 0.05,
-        :conv_rate => 0.0001,
+        :learn_rate => 0.01,
+        :conv_rate => 0.000000001,
         :init_flux => 1.0,
         :max_flux => 05.0,
         :period_min => 100,
@@ -149,6 +149,9 @@ function plot_results(results_dict, p)
     cols = distinguishable_colors(p[:num_files_per_chunk], [RGB(0,0,0), RGB(1,1,1)], dropseed=true)
     pcols = map(col -> (red(col), green(col), blue(col)), cols)
     fig, ax = subplots(nrows=Int(ceil((length(p[:fitness_chunks])-2)/2)), ncols=2)
+    global_min = 1.0
+    global_max = 0.0
+    names= ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)", "(k)", "(l)", "(m)", "(n)", "(o)", "(p)", "(q)", "(r)", "(s)", "(t)", "(u)", "(v)", "(w)", "(x)", "(y)", "(z)"]
     # filenames = collect(keys(results_dict[0.1]))
     for l in 1:length(keys(results_dict))
         fit_val = collect(keys(results_dict))[l]
@@ -166,6 +169,12 @@ function plot_results(results_dict, p)
         results=  sort(results)
         min_val = minimum(starting_fitnesses)
         max_val = maximum(results)
+        if global_min > min_val
+            global_min = min_val
+        end
+        if global_max < max_val
+            global_max = max_val
+        end
         kernel = stats.gaussian_kde(results, bw_method=0.1)
         y_values = kernel(results)
         # scale y values to distribution
@@ -191,24 +200,33 @@ function plot_results(results_dict, p)
         # sns.histplot(results, ax=ax[ix], alpha=1.0, color="k", label="Learned fitness KDE for $fit_val", stat="probability")
         ax[ix].fill_between(results, y_values, color="k", alpha=0.4)
         for i in 1:length(filenames)
-            sns.histplot(
-                data=results_dict[fit_val][filenames[i]], ax=ax[ix], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20
-            )
             genome = npzread(pathname * filenames[i])
             fitness = fitness_function_oscillate(genome, p[:size], 220.0)
             if ix==1 && i==1
                 ax[ix].axvline(fitness, color="k", label="Starting fitness", linestyle="--")
+                sns.histplot(
+                    data=results_dict[fit_val][filenames[i]], ax=ax[ix], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20, label="Learned fitness for a genome"
+                )
             else
+                sns.histplot(
+                    data=results_dict[fit_val][filenames[i]], ax=ax[ix], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20
+                )
                 ax[ix].axvline(fitness, color=pcols[i], linestyle="--")
             end
         end
         buffer = (max_val - min_val) * 0.1
         ax[ix].axes.set_xlim([min_val-buffer, max_val+buffer])
+        # set 4 values for x axis
+        xtick_arr = round.([min_val, min_val + (max_val-min_val)/3, min_val + 2*(max_val-min_val)/3, max_val], digits=3)
+        ax[ix].axes.set_xticks(xtick_arr)
         ax[ix].set_title("$(fit_val)")
         ax[ix].set_xlabel("Fitness")
-        ax[ix].set_ylabel("Probability")
+        ax[ix].set_ylabel("probability")
         fig.legend(loc="lower center", ncol=4)
         fig.suptitle("Distribution of fitness for 5 closest genomes after starting point\n Duration: $(p[:duration])")
+        #save figure as pdf
+        savefig("fitness_distribution_$(p[:duration]).pdf")
+        savefig("fitness_distribution_2000.eps", format="eps", dpi=1000)
     end
 end
 results_dict, p = get_results()
@@ -224,7 +242,7 @@ plot_results(results_dict, p)
 # end
 # p = jldopen("./data/results_dict_test-dur2000-numg$(5).jld2", "r") do f
 #     JLD2.read(f, "params")
-# end
+#  end
 
 
 

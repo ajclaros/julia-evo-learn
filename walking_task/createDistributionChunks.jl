@@ -95,20 +95,20 @@ end
 
 function get_results()
     p = Dict(
-        :duration => 8000,
+        :duration => 4000,
         :size => 3,
         :generator => "CPG",
         :config => 3,
         :window_size => 220,
-        :learn_rate => 0.1,
-        :conv_rate => 0.00000001,
+        :learn_rate => 0.01,
+        :conv_rate => 0.000000001,
         :init_flux => 0.02,
         :max_flux => 0.2,
         :period_min => 440,
         :period_max => 4400,
         :learning_start => 550,
         :dt => 0.1,
-        :fitness_chunks => [0.16, 0.2, 0.3, 0.4, 0.5, 0.6], #, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0],
+        :fitness_chunks => [0.10,.15, 0.2, .25, 0.3, .35, 0.4, .45, 0.5, .55, 0.6], #, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 1.0],
         :num_files_per_chunk => 5,
         :num_trials => 100,
         :choose_random => true,
@@ -126,8 +126,8 @@ function get_results()
         for i in 1:length(p[:fitness_chunks])-1
             fit_min = p[:fitness_chunks][i]
             fit_max = p[:fitness_chunks][i+1]
-            println("Fitness range: ", fit_min, " - ", fit_max)
             results_dict[fit_min] = Dict()
+            println(keys(results_dict))
             indices = get_indices(fit_min, fit_max, fitness)
             files = drop_outliers(fitness[indices], fit_min, fit_max, files_arr[indices])
             # println("Chunk $i: $fit_min - $fit_max")
@@ -168,23 +168,26 @@ function plot_results(results_dict, p)
     pathname = getPathname(p[:generator], p[:size], p[:config])
     cols = distinguishable_colors(p[:num_files_per_chunk], [RGB(0,0,0), RGB(1,1,1)], dropseed=true)
     pcols = map(col -> (red(col), green(col), blue(col)), cols)
-    fig, ax = subplots(nrows=Int(ceil((length(p[:fitness_chunks]))/2)), ncols=2)
+    fig, ax = subplots(nrows=Int(ceil((length(p[:fitness_chunks]))/2)-1), ncols=2)
     # filenames = collect(keys(results_dict[0.1]))
     for l in 1:length(keys(results_dict))
         fit_val = collect(keys(results_dict))[l]
         filenames = collect(keys(results_dict[fit_val]))
-        println("Plotting: ", filenames)
         results = zeros(length(filenames), p[:num_trials])
-        println(fit_val)
-
         for i in 1:length(filenames)
-            println(filenames[i])
             results[i, :] = results_dict[fit_val][filenames[i]]
         end
         starting_fitnesses = [get_fitness(file) for file in keys(results_dict[fit_val])]
         results = vec(results)
         results=  sort(results)
         min_val = minimum(starting_fitnesses)
+        # check if any results are less than min_val. If so, set min_val to that value
+        if minimum(results) < min_val
+            println("Old min: ", min_val)
+            min_val = minimum(results)
+            println("New min: ", min_val)
+        end
+        println("Min val: ", min_val)
         max_val = maximum(results)
         kernel = stats.gaussian_kde(results, bw_method=0.1)
         y_values = kernel(results)
@@ -201,33 +204,46 @@ function plot_results(results_dict, p)
             col = 1
             row = Int(floor(ix/2)) + 1
         end
-        ix = row + (col-1)*Int(ceil((length(p[:fitness_chunks])-2)/2))
-
+        ix = row + (col-1)*Int(ceil((length(p[:fitness_chunks]))/2))
+        println("Row: $row, Col: $col, ix: $ix")
         if ix == 1
-            ax[ix].plot(results, y_values, color="k", label="Learned fitness KDE for closest genomes after starting point")
+            # ax[ix].plot(results, y_values, color="k", label="Learned fitness KDE for closest genomes after starting point")
+            ax[row, col].plot(results, y_values, color="k", label="Learned fitness KDE for closest genomes after starting point")
+
         else
-            ax[ix].plot(results, y_values, color="k")
+            # ax[ix].plot(results, y_values, color="k")
+            ax[row, col].plot(results, y_values, color="k")
         end
         # sns.histplot(results, ax=ax[ix], alpha=1.0, color="k", label="Learned fitness KDE for $fit_val", stat="probability")
-        ax[ix].fill_between(results, y_values, color="k", alpha=0.4)
+        # ax[ix].fill_between(results, y_values, color="k", alpha=0.4)
+        ax[row, col].fill_between(results, y_values, color="k", alpha=0.4)
         for i in 1:length(filenames)
             sns.histplot(
-                data=results_dict[fit_val][filenames[i]], ax=ax[ix], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20
+            #     data=results_dict[fit_val][filenames[i]], ax=ax[ix], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20
+            # )
+                data=results_dict[fit_val][filenames[i]], ax=ax[row, col], color=pcols[i], alpha=0.5, stat="probability", binrange=(min_val, max_val), bins=20
             )
             genome = npzread(pathname * filenames[i])
             fitness = fitness_function(genome, p[:size], p[:generator], p[:config])
             if ix==1 && i==1
-                ax[ix].axvline(fitness, color="k", label="Starting fitness", linestyle="--")
+                # ax[ix].axvline(fitness, color="k", label="Starting fitness", linestyle="--")
+                ax[row,col].axvline(fitness, color="k", label="Starting fitness", linestyle="--")
             else
-                ax[ix].axvline(fitness, color=pcols[i], linestyle="--")
+                # ax[ix].axvline(fitness, color=pcols[i], linestyle="--")
+                ax[row, col].axvline(fitness, color=pcols[i], linestyle="--")
             end
         end
         buffer = (max_val - min_val) * 0.1
-        ax[ix].axes.set_xlim([min_val-buffer, max_val+buffer])
-        ax[ix].set_title("$(fit_val)")
-        ax[ix].set_xlabel("Fitness")
-        ax[ix].set_ylabel("Probability")
-        fig.legend(loc="lower center", ncol=4)
+        # ax[ix].set_title("$(fit_val)")
+        # ax[ix].set_xlabel("Fitness")
+        # ax[ix].set_ylabel("Probability")
+        ax[row, col].axes.set_xlim([min_val-buffer, max_val+buffer])
+        xtick_arr = round.([min_val, min_val + (max_val-min_val)/3, min_val + 2*(max_val-min_val)/3, max_val], digits=3)
+        ax[row, col].axes.set_xticks(xtick_arr)
+        ax[row, col].set_title("$(fit_val)")
+        ax[row, col].set_xlabel("Fitness")
+        ax[row, col].set_ylabel("Probability")
+        # fig.legend(loc="lower center", ncol=4)
         fig.suptitle("Distribution of fitness for 5 closest genomes after starting point\n Duration: $(p[:duration])")
     end
 end
@@ -252,46 +268,3 @@ plot_results(results_dict, p)
 # sort results from smallest to largest
 
 
-
-# results = plot_results(results_dict, p)
-# k1 = kde!(results)
-# # plot with gadfly
-# using KernelDensityEstimatePlotting
-# show the plot
-
-
-        # ax[ix].hist(value, bins=20, color=pcols[ix])
-        # if ix==1
-        #     ax[ix].axvline(starting_fitness, color="k", linestyle="dashed", linewidth=2, label="Starting Fitness")
-        #     ax[ix].axvline(mean(value), color="r", linestyle="dashed", linewidth=2, label="Mean")
-        # else
-        #     ax[ix].axvline(starting_fitness, color="k", linestyle="dashed", linewidth=2)
-        #     ax[ix].axvline(mean(value), color="r", linestyle="dashed", linewidth=2)
-        # end
-        # set xlims
-#         max_val = maximum(arr)
-#         # round up to  nearest 0.05
-#         max_val = ceil(max_val * 20) / 20
-#         # max_val = round(max_val, digits=2)
-#         ax[ix].set_xlim(x_0 , max_val)
-#         # xlims = ax[ix].get_xlim()
-#         # if xlims[1] < 0.0
-#         #     ax[ix].axes[:set_xticks]([0, round(xlims[2] ;digits=3)])
-#         # else
-#         #     ax[ix].axes[:set_xticks]([round(xlims[1] ; digits=3), round(xlims[2] ;digits=3)])
-#         # end
-#         # ax[ix].axes[:set_xticks](max_val)
-#         ax[ix].axes[:set_yticks]([])
-#         # set y axis title
-#         ax[ix].set_ylabel("($(ix))  ")
-#         # rotate y axis title
-#         ax[ix].yaxis.label.set_rotation(0)
-#     end
-#     fig.legend(loc="upper center")
-#     fig.suptitle("Fitness Distribution with Duration $(p[:duration])")
-#     savefig("./images/oscillation_random-$(p[:num_random])genomes-home")
-# # end # end main, uncomment to run as a script. keep commented to run in REPL
-# # save results_dict as a .jld2 file
-# JLD2.@save "results_dict_duration1000.jld2" results_dict
-# # get fitness of the first key in results_dict
-# find index of 0.1 in p[:fitness_chunks]

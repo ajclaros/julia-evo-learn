@@ -206,7 +206,7 @@ function runMicrobialIsland(microbial)
         pop.currentGen += 1
     end
 end
-# microbial = createMicrobialIsland(200, 3, 20, 0.5, 0.05, 500, "CPG", 3)
+# microbial = createMicrobialIsland(100, 3, 25, 0.5, 0.1, 500, "CPG", 3)
 # runMicrobialIsland(microbial)
 # params, pop = microbial
 # runMicrobial(microbial)
